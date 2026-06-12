@@ -1,0 +1,1 @@
+const apiUrl = 'https://server7.mp3quran.net/basit/Almusshaf-Al-Mojawwad/';
