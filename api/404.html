@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body>
+<script src="/script/main.js"></script>
+<script>
+  try{
+    var p = decodeURIComponent(location.pathname.replace(/^\/+/, ''));
+    var m = p.match(/^quran\/reader\/([^\/]+)\/([^\/]+)$/i);
+    if(!m) return;
+    var reader = m[1];
+    var filename = m[2];
+    var fileId = filename.replace(/\.[^.]+$/,'');
+    var normalized = String(parseInt(fileId,10));
+
+    // إذا كان القارئ لديه ملف surasUrl.js نحمّله ونستخدم IdUrl
+    var surasPath = '/quran/reader/' + reader + '/surasUrl.js';
+    var script = document.createElement('script');
+    script.src = surasPath;
+    script.onload = function(){
+      try{
+        var idUrl = null;
+        if(window.surasUrl && Array.isArray(window.surasUrl)){
+          for(var i=0;i<window.surasUrl.length;i++){
+            var e = window.surasUrl[i];
+            if(e && (e.id == normalized || e.id == fileId)){
+              idUrl = e.IdUrl || e.Idurl || e.idUrl;
+              break;
+            }
+          }
+        }
+        if(idUrl && typeof Driverdownload !== 'undefined' && typeof IgnoreLargeError !== 'undefined'){
+          location.replace(Driverdownload + idUrl + IgnoreLargeError);
+        }
+      }catch(err){ console.error(err); }
+    };
+    script.onerror = function(){ /* failed to load mapping; do nothing */ };
+    document.head.appendChild(script);
+  }catch(e){console.error(e)}
+</script>
+</body>
+</html>
