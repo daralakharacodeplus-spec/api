@@ -1,10 +1,15 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body>
-<script src="/script/main.js"></script>
+<pre id="debug" style="white-space:pre-wrap;font-family:monospace;display:none"></pre>
 <script>
+  function debug(msg){ try{ console.log(msg); var d=document.getElementById('debug'); if(d){ d.style.display='block'; d.textContent += msg + '\n'; } }catch(e){} }
   try{
+    // تحديد جذر المستودع (للتعامل مع GitHub Pages project sites)
+    var parts = location.pathname.split('/');
+    var repoBase = (parts.length>1 && parts[1]) ? ('/' + parts[1]) : '';
+    debug('repoBase=' + repoBase);
     var p = decodeURIComponent(location.pathname.replace(/^\/+/, ''));
     var m = p.match(/^quran\/reader\/([^\/]+)\/([^\/]+)$/i);
     if(!m) return;
@@ -14,27 +19,72 @@
     var normalized = String(parseInt(fileId,10));
 
     // إذا كان القارئ لديه ملف surasUrl.js نحمّله ونستخدم IdUrl
-    var surasPath = '/quran/reader/' + reader + '/surasUrl.js';
+    var surasPath = repoBase + '/quran/reader/' + reader + '/surasUrl.js';
     var script = document.createElement('script');
+    // تأكد من تحميل main.js من الجذر الصحيح
+    var mainScript = document.createElement('script');
+    mainScript.src = repoBase + '/script/main.js';
+    mainScript.onload = function(){ debug('loaded main.js from '+mainScript.src); };
+    mainScript.onerror = function(){ debug('failed to load main.js from '+mainScript.src); };
+    document.head.appendChild(mainScript);
+
     script.src = surasPath;
     script.onload = function(){
       try{
+        debug('loaded mapping: '+surasPath);
         var idUrl = null;
-        if(window.surasUrl && Array.isArray(window.surasUrl)){
-          for(var i=0;i<window.surasUrl.length;i++){
-            var e = window.surasUrl[i];
-            if(e && (e.id == normalized || e.id == fileId)){
-              idUrl = e.IdUrl || e.Idurl || e.idUrl;
+        // بعض ملفات القارئ قد تَعرّف "surasUrl" بواسطة const (لا تظهر على window)
+        var mapping = null;
+        var matchedEntry = null;
+        if(typeof surasUrl !== 'undefined') mapping = surasUrl;
+        else if(window.surasUrl && Array.isArray(window.surasUrl)) mapping = window.surasUrl;
+        debug('mapping present: '+(mapping?mapping.length:0));
+        if(mapping && Array.isArray(mapping)){
+          for(var i=0;i<mapping.length;i++){
+            var e = mapping[i];
+            if(!e) continue;
+            if(e.id == normalized || e.id == fileId){
+              matchedEntry = e;
+              idUrl = e.IdUrl || e.Idurl || e.idUrl || e.Id || e.idUrl;
+              debug('matched entry id='+e.id+' IdUrl='+idUrl);
               break;
             }
           }
         }
+
+        // إذا وُجدت IdUrl واستخدمت مع Google Drive
         if(idUrl && typeof Driverdownload !== 'undefined' && typeof IgnoreLargeError !== 'undefined'){
-          location.replace(Driverdownload + idUrl + IgnoreLargeError);
+          var url = Driverdownload + idUrl + IgnoreLargeError;
+          // حدد ما إذا كنا نحتاج لإلحاق اسم الملف من خصائص العنصر أو متغير عام
+          var append = false;
+          if(matchedEntry){
+            append = !!(matchedEntry.appendFilename || matchedEntry.append || matchedEntry.append_name);
+          }
+          if(!append){
+            if(typeof appendFilename !== 'undefined') append = !!appendFilename;
+            else if(window.appendFilename) append = !!window.appendFilename;
+          }
+          if(append){ url += '&filename=' + encodeURIComponent(filename); }
+          debug('redirect -> '+url);
+          location.replace(url);
+          return;
         }
-      }catch(err){ console.error(err); }
+
+        // إن لم تُوجد IdUrl، لكن هناك apiUrl في ملف القارئ فنبني الرابط منه
+        var readerApi = (typeof apiUrl !== 'undefined') ? apiUrl : (window.apiUrl || null);
+        if(!idUrl && readerApi){
+          var base = apiUrl;
+          // تأكد من وجود فاصل "/" واحد فقط
+          if(base.slice(-1) !== '/') base += '/';
+          var url2 = base + filename;
+          debug('redirect -> '+url2);
+          location.replace(url2);
+          return;
+        }
+        // لا إعادة توجيه إذا لم تتوفر أيّ بيانات مناسبة
+      }catch(err){ console.error(err); debug('onload error: '+err); }
     };
-    script.onerror = function(){ /* failed to load mapping; do nothing */ };
+    script.onerror = function(){ debug('failed to load mapping: '+surasPath); /* failed to load mapping; do nothing */ };
     document.head.appendChild(script);
   }catch(e){console.error(e)}
 </script>
