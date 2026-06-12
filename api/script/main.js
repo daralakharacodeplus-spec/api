@@ -1,2 +1,0 @@
-Driverdownload = "https://drive.usercontent.google.com/download?id=";
-IgnoreLargeError = "&export=download&authuser=0&confirm=t&uuid=b202c5f7-2b3c-4814-a805-6d34e7f3cce0&at=APZUnTVm-rghM2NKMeqVqwRCuzs5%3A1710771964771";
